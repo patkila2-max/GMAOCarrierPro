@@ -188,6 +188,29 @@ select {
   margin: 0;
 }
 
+.toolbar,
+.filter-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.toolbar input,
+.toolbar select,
+.filter-row select,
+.mini-form input,
+.mini-form select {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #fff;
+}
+
+.toolbar input {
+  flex: 1 1 220px;
+}
+
 .trend-chart {
   display: flex;
   align-items: flex-end;
@@ -296,6 +319,12 @@ select {
   gap: 18px;
 }
 
+.stacked-header {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
 .table-wrap {
   overflow-x: auto;
 }
@@ -365,6 +394,10 @@ th {
   padding: 16px;
 }
 
+.inline-form {
+  margin-top: 18px;
+}
+
 .mini-form h4 {
   margin: 0 0 4px;
 }
@@ -377,12 +410,19 @@ th {
   font-size: 0.85rem;
 }
 
-.mini-form input,
-.mini-form select {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 10px 12px;
-  background: #fff;
+.action-btn {
+  border: none;
+  background: #edf3ff;
+  color: var(--primary);
+  border-radius: 8px;
+  padding: 7px 10px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.action-btn.danger {
+  background: #ffe7e7;
+  color: var(--danger);
 }
 
 @media (max-width: 980px) {

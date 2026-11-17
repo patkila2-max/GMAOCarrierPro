@@ -51,73 +51,16 @@ const assets = [
 ];
 
 const workOrders = [
-  {
-    id: 'WO-2047',
-    assetId: 'AST-101',
-    title: 'Inspect pressure relief valve',
-    priority: 'High',
-    status: 'Open',
-    dueDate: '2026-11-22',
-    technician: 'R. Silva',
-    category: 'Safety'
-  },
-  {
-    id: 'WO-2048',
-    assetId: 'AST-207',
-    title: 'Replace drive belt and verify alignment',
-    priority: 'Medium',
-    status: 'In Progress',
-    dueDate: '2026-11-25',
-    technician: 'J. Patel',
-    category: 'Reliability'
-  },
-  {
-    id: 'WO-2049',
-    assetId: 'AST-412',
-    title: 'Complete emergency generator load test',
-    priority: 'Critical',
-    status: 'Open',
-    dueDate: '2026-11-18',
-    technician: 'M. Gomez',
-    category: 'Power'
-  },
-  {
-    id: 'WO-2050',
-    assetId: 'AST-304',
-    title: 'Clean basin and inspect drift eliminators',
-    priority: 'Low',
-    status: 'Closed',
-    dueDate: '2026-11-12',
-    technician: 'S. Nguyen',
-    category: 'HVAC'
-  }
+  { id: 'WO-2047', assetId: 'AST-101', title: 'Inspect pressure relief valve', priority: 'High', status: 'Open', dueDate: '2026-11-22', technician: 'R. Silva', category: 'Safety' },
+  { id: 'WO-2048', assetId: 'AST-207', title: 'Replace drive belt and verify alignment', priority: 'Medium', status: 'In Progress', dueDate: '2026-11-25', technician: 'J. Patel', category: 'Reliability' },
+  { id: 'WO-2049', assetId: 'AST-412', title: 'Complete emergency generator load test', priority: 'Critical', status: 'Open', dueDate: '2026-11-18', technician: 'M. Gomez', category: 'Power' },
+  { id: 'WO-2050', assetId: 'AST-304', title: 'Clean basin and inspect drift eliminators', priority: 'Low', status: 'Closed', dueDate: '2026-11-12', technician: 'S. Nguyen', category: 'HVAC' }
 ];
 
 const schedule = [
-  {
-    id: 'PM-5002',
-    assetId: 'AST-304',
-    task: 'Cooling tower cleaning',
-    frequency: 'Monthly',
-    nextDue: '2026-11-25',
-    owner: 'Facilities'
-  },
-  {
-    id: 'PM-5003',
-    assetId: 'AST-101',
-    task: 'Pressure vessel inspection',
-    frequency: 'Quarterly',
-    nextDue: '2026-11-29',
-    owner: 'Safety'
-  },
-  {
-    id: 'PM-5004',
-    assetId: 'AST-207',
-    task: 'Lubrication and vibration check',
-    frequency: 'Bi-weekly',
-    nextDue: '2026-11-20',
-    owner: 'Reliability'
-  }
+  { id: 'PM-5002', assetId: 'AST-304', task: 'Cooling tower cleaning', frequency: 'Monthly', nextDue: '2026-11-25', owner: 'Facilities' },
+  { id: 'PM-5003', assetId: 'AST-101', task: 'Pressure vessel inspection', frequency: 'Quarterly', nextDue: '2026-11-29', owner: 'Safety' },
+  { id: 'PM-5004', assetId: 'AST-207', task: 'Lubrication and vibration check', frequency: 'Bi-weekly', nextDue: '2026-11-20', owner: 'Reliability' }
 ];
 
 const getOverview = () => {
@@ -127,12 +70,7 @@ const getOverview = () => {
   const uptime = Math.round(assets.reduce((sum, asset) => sum + asset.availability, 0) / assets.length);
 
   return {
-    summary: {
-      openWorkOrders,
-      critical,
-      compliance,
-      uptime
-    },
+    summary: { openWorkOrders, critical, compliance, uptime },
     trends: [
       { month: 'Jan', value: 72 },
       { month: 'Feb', value: 75 },
@@ -144,6 +82,12 @@ const getOverview = () => {
   };
 };
 
+const generateAssetId = () => {
+  const prefix = 'AST';
+  const numeric = assets.length + 1;
+  return `${prefix}-${String(numeric).padStart(3, '0')}`;
+};
+
 app.get('/api/health', (req, res) => {
   res.json({ ok: true, service: 'GMAO Carrier Pro', timestamp: new Date().toISOString() });
 });
@@ -153,15 +97,78 @@ app.get('/api/overview', (req, res) => {
 });
 
 app.get('/api/assets', (req, res) => {
-  res.json(assets);
+  const { type, q } = req.query;
+  let filtered = [...assets];
+
+  if (type) {
+    filtered = filtered.filter((asset) => asset.type.toLowerCase() === String(type).toLowerCase());
+  }
+
+  if (q) {
+    const search = String(q).trim().toLowerCase();
+    filtered = filtered.filter((asset) =>
+      asset.name.toLowerCase().includes(search) ||
+      asset.id.toLowerCase().includes(search) ||
+      asset.location.toLowerCase().includes(search)
+    );
+  }
+
+  res.json(filtered);
+});
+
+app.get('/api/assets/:assetId', (req, res) => {
+  const asset = assets.find((item) => item.id === req.params.assetId);
+  if (!asset) {
+    return res.status(404).json({ error: 'Asset not found.' });
+  }
+
+  res.json(asset);
+});
+
+app.post('/api/assets', (req, res) => {
+  const { name, type, location, condition = 'Good', availability = 90 } = req.body || {};
+
+  if (!name || !type || !location) {
+    return res.status(400).json({ error: 'Name, type, and location are required.' });
+  }
+
+  const asset = {
+    id: generateAssetId(),
+    name,
+    type,
+    location,
+    condition,
+    status: condition === 'Critical' ? 'Maintenance' : 'Operational',
+    lastService: new Date().toISOString().slice(0, 10),
+    availability: Number(availability)
+  };
+
+  assets.unshift(asset);
+  res.status(201).json(asset);
 });
 
 app.get('/api/work-orders', (req, res) => {
-  res.json(workOrders);
+  const { status, priority } = req.query;
+  let filtered = [...workOrders];
+
+  if (status) {
+    filtered = filtered.filter((item) => item.status.toLowerCase() === String(status).toLowerCase());
+  }
+
+  if (priority) {
+    filtered = filtered.filter((item) => item.priority.toLowerCase() === String(priority).toLowerCase());
+  }
+
+  res.json(filtered);
 });
 
-app.get('/api/schedule', (req, res) => {
-  res.json(schedule);
+app.get('/api/work-orders/:id', (req, res) => {
+  const workOrder = workOrders.find((item) => item.id === req.params.id);
+  if (!workOrder) {
+    return res.status(404).json({ error: 'Work order not found.' });
+  }
+
+  res.json(workOrder);
 });
 
 app.post('/api/work-orders', (req, res) => {
@@ -185,6 +192,35 @@ app.post('/api/work-orders', (req, res) => {
 
   workOrders.unshift(newWorkOrder);
   res.status(201).json(newWorkOrder);
+});
+
+app.patch('/api/work-orders/:id', (req, res) => {
+  const index = workOrders.findIndex((item) => item.id === req.params.id);
+  if (index === -1) {
+    return res.status(404).json({ error: 'Work order not found.' });
+  }
+
+  const { status, priority, technician, dueDate } = req.body || {};
+  if (status) workOrders[index].status = status;
+  if (priority) workOrders[index].priority = priority;
+  if (technician) workOrders[index].technician = technician;
+  if (dueDate) workOrders[index].dueDate = dueDate;
+
+  res.json(workOrders[index]);
+});
+
+app.delete('/api/work-orders/:id', (req, res) => {
+  const index = workOrders.findIndex((item) => item.id === req.params.id);
+  if (index === -1) {
+    return res.status(404).json({ error: 'Work order not found.' });
+  }
+
+  const [removed] = workOrders.splice(index, 1);
+  res.json({ deleted: true, workOrder: removed });
+});
+
+app.get('/api/schedule', (req, res) => {
+  res.json(schedule);
 });
 
 app.get('*', (req, res) => {

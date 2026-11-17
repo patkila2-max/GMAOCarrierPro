@@ -31,7 +31,7 @@
             <p class="eyebrow">Operations dashboard</p>
             <h2>Maintenance Management System</h2>
           </div>
-          <button class="primary-btn">Generate report</button>
+          <button class="primary-btn" id="refreshBtn" type="button">Refresh data</button>
         </header>
 
         <section id="dashboard" class="dashboard-grid">
@@ -68,13 +68,75 @@
           <div class="panel-header">
             <h3>Asset register</h3>
           </div>
+
+          <div class="toolbar">
+            <input id="assetFilter" type="search" placeholder="Search assets, locations, or ID" />
+            <select id="assetTypeFilter">
+              <option value="">All asset types</option>
+              <option value="Mechanical">Mechanical</option>
+              <option value="Utility">Utility</option>
+              <option value="HVAC">HVAC</option>
+              <option value="Power">Power</option>
+            </select>
+          </div>
+
           <div id="assetsList" class="asset-grid"></div>
+
+          <form id="assetForm" class="mini-form inline-form">
+            <h4>Add asset</h4>
+            <label>
+              Asset name
+              <input name="name" type="text" placeholder="Pump P-14" required />
+            </label>
+            <label>
+              Type
+              <select name="type" required>
+                <option value="Mechanical">Mechanical</option>
+                <option value="Utility">Utility</option>
+                <option value="HVAC">HVAC</option>
+                <option value="Power">Power</option>
+              </select>
+            </label>
+            <label>
+              Location
+              <input name="location" type="text" placeholder="Plant 3" required />
+            </label>
+            <label>
+              Condition
+              <select name="condition">
+                <option value="Good">Good</option>
+                <option value="Watch">Watch</option>
+                <option value="Critical">Critical</option>
+              </select>
+            </label>
+            <label>
+              Availability %
+              <input name="availability" type="number" min="0" max="100" value="90" />
+            </label>
+            <button class="primary-btn" type="submit">Add asset</button>
+          </form>
         </section>
 
         <section id="work-orders" class="panel split-panel">
-          <div class="panel-header">
+          <div class="panel-header stacked-header">
             <h3>Work orders</h3>
+            <div class="filter-row">
+              <select id="workOrderStatusFilter">
+                <option value="">All statuses</option>
+                <option value="Open">Open</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Closed">Closed</option>
+              </select>
+              <select id="workOrderPriorityFilter">
+                <option value="">All priorities</option>
+                <option value="Low">Low</option>
+                <option value="Medium">Medium</option>
+                <option value="High">High</option>
+                <option value="Critical">Critical</option>
+              </select>
+            </div>
           </div>
+
           <div class="table-wrap">
             <table>
               <thead>
@@ -86,6 +148,7 @@
                   <th>Status</th>
                   <th>Technician</th>
                   <th>Due</th>
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody id="workOrdersTable"></tbody>
