@@ -1,6 +1,7 @@
 const state = {
   token: localStorage.getItem('gmao-token') || '',
-  user: null
+  user: null,
+  reportData: null
 };
 
 async function fetchJson(url, options = {}) {
@@ -274,6 +275,83 @@ function renderCalendar(schedule) {
     .join('');
 }
 
+function renderReports(reportData) {
+  const container = document.getElementById('reportSummary');
+  const alertsContainer = document.getElementById('reportAlerts');
+  if (!container || !alertsContainer) return;
+
+  const cells = [
+    { label: 'Assets', value: reportData.summary.totalAssets },
+    { label: 'Open work orders', value: reportData.summary.openWorkOrders },
+    { label: 'Critical issues', value: reportData.summary.criticalIssues },
+    { label: 'Low inventory', value: reportData.summary.lowInventory },
+    { label: 'Overdue work orders', value: reportData.summary.overdueWorkOrders },
+    { label: 'Scheduled PM', value: reportData.summary.scheduledPm }
+  ];
+
+  container.innerHTML = cells
+    .map(
+      (cell) => `
+        <article class="report-card">
+          <span>${cell.label}</span>
+          <strong>${cell.value}</strong>
+        </article>
+      `
+    )
+    .join('');
+
+  if (!reportData.alerts.length) {
+    alertsContainer.innerHTML = '<div class="alert-item"><p>No active alerts at the moment.</p></div>';
+    return;
+  }
+
+  alertsContainer.innerHTML = reportData.alerts
+    .slice(0, 6)
+    .map(
+      (alert) => `
+        <div class="alert-item">
+          <header>
+            <strong>${alert.title}</strong>
+            <span class="alert-pill ${alert.severity.toLowerCase()}">${alert.severity}</span>
+          </header>
+          <p>${alert.type}: ${alert.detail}</p>
+        </div>
+      `
+    )
+    .join('');
+}
+
+function toCsv(reportData) {
+  const rows = [
+    ['Type', 'Title', 'Severity', 'Detail'],
+    ...reportData.alerts.map((alert) => [alert.type, alert.title, alert.severity, alert.detail])
+  ];
+
+  return rows.map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(',')).join('\n');
+}
+
+function downloadCsv() {
+  if (!state.reportData) return;
+  const blob = new Blob([toCsv(state.reportData)], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'gmao-operations-report.csv';
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function downloadJson() {
+  if (!state.reportData) return;
+  const blob = new Blob([JSON.stringify(state.reportData, null, 2)], { type: 'application/json;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'gmao-operations-report.json';
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 function renderSchedule(schedule) {
   const container = document.getElementById('scheduleTable');
   if (!container) return;
@@ -310,6 +388,9 @@ async function loadDashboard() {
     const activity = await fetchJson('/api/maintenance-log');
     const schedule = await fetchJson('/api/schedule');
     const inventory = await fetchJson('/api/inventory');
+    const reports = await fetchJson('/api/reports');
+
+    state.reportData = reports;
 
     renderSummary(overview.summary);
     renderTrendChart(overview.trends);
@@ -319,6 +400,7 @@ async function loadDashboard() {
     renderInventory(inventory);
     renderActivity(activity);
     renderCalendar(schedule);
+    renderReports(reports);
     renderSchedule(schedule);
   } catch (error) {
     console.error('Failed to load dashboard data:', error);
@@ -421,6 +503,8 @@ window.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('assetForm').addEventListener('submit', handleAssetSubmit);
   document.getElementById('workOrderForm').addEventListener('submit', handleWorkOrderSubmit);
   document.getElementById('inventoryForm').addEventListener('submit', handleInventorySubmit);
+  document.getElementById('downloadCsvBtn').addEventListener('click', downloadCsv);
+  document.getElementById('downloadJsonBtn').addEventListener('click', downloadJson);
 
   await loadSession();
   await loadDashboard();

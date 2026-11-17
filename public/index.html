@@ -100,7 +100,7 @@ function readStore() {
   try {
     return JSON.parse(raw);
   } catch (error) {
-    return { ...baseState };
+    return JSON.parse(JSON.stringify(baseState));
   }
 }
 
@@ -127,6 +127,65 @@ function getOverview(store) {
       { month: 'May', value: 86 },
       { month: 'Jun', value: 88 }
     ]
+  };
+}
+
+function getReportData(store) {
+  const workOrders = store.workOrders || [];
+  const inventory = store.inventory || [];
+  const assets = store.assets || [];
+  const schedule = store.schedule || [];
+
+  const criticalAssets = assets.filter((asset) => asset.condition === 'Critical');
+  const lowInventory = inventory.filter((item) => item.status && item.status.toLowerCase() === 'low');
+  const overdueWorkOrders = workOrders.filter((item) => item.status !== 'Closed' && item.dueDate && new Date(item.dueDate) < new Date());
+
+  const alerts = [
+    ...criticalAssets.map((asset) => ({
+      type: 'Critical asset',
+      title: `${asset.name} (${asset.id})`,
+      severity: 'High',
+      detail: 'Asset condition is flagged critical and requires immediate review.'
+    })),
+    ...lowInventory.map((item) => ({
+      type: 'Inventory risk',
+      title: `${item.name} (${item.sku})`,
+      severity: 'Medium',
+      detail: `Only ${item.quantity} units remain in ${item.location}.`
+    })),
+    ...overdueWorkOrders.map((order) => ({
+      type: 'Overdue work order',
+      title: `${order.title} (${order.id})`,
+      severity: order.priority === 'Critical' ? 'High' : 'Medium',
+      detail: `Due ${order.dueDate}. Assigned to ${order.technician || 'unassigned'}.`
+    }))
+  ];
+
+  const byStatus = ['Open', 'In Progress', 'Closed'].map((status) => ({
+    status,
+    count: workOrders.filter((item) => item.status === status).length
+  }));
+
+  const upcomingMaintenance = (schedule || []).slice(0, 4).map((item) => ({
+    id: item.id,
+    asset: item.assetId,
+    task: item.task,
+    due: item.nextDue,
+    owner: item.owner
+  }));
+
+  return {
+    summary: {
+      totalAssets: assets.length,
+      openWorkOrders: workOrders.filter((item) => item.status !== 'Closed').length,
+      criticalIssues: criticalAssets.length,
+      lowInventory: lowInventory.length,
+      overdueWorkOrders: overdueWorkOrders.length,
+      scheduledPm: schedule.length
+    },
+    byStatus,
+    alerts,
+    upcomingMaintenance
   };
 }
 
@@ -169,6 +228,11 @@ app.get('/api/me', (req, res) => {
 
 app.get('/api/overview', (req, res) => {
   res.json(getOverview(readStore()));
+});
+
+app.get('/api/reports', (req, res) => {
+  const store = readStore();
+  res.json(getReportData(store));
 });
 
 app.get('/api/assets', (req, res) => {

@@ -213,6 +213,16 @@ select {
   margin: 0;
 }
 
+.split-header {
+  align-items: center;
+}
+
+.report-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .toolbar,
 .filter-row {
   display: flex;
@@ -264,14 +274,16 @@ select {
 }
 
 .asset-grid,
-.team-grid {
+.team-grid,
+.report-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 16px;
 }
 
 .asset-card,
-.team-card {
+.team-card,
+.report-card {
   border: 1px solid var(--border);
   background: #f8fbff;
   border-radius: 12px;
@@ -501,6 +513,56 @@ th {
 .inventory-badge.ordered {
   background: #dfeaff;
   color: var(--primary);
+}
+
+.report-card strong {
+  display: block;
+  font-size: 1.8rem;
+  margin: 8px 0 4px;
+}
+
+.alert-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.alert-item {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  background: #fff;
+}
+
+.alert-item header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.alert-pill {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 5px 9px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.alert-pill.high {
+  background: #ffe7e7;
+  color: var(--danger);
+}
+
+.alert-pill.medium {
+  background: #fff1d8;
+  color: #b67c00;
+}
+
+.alert-item p {
+  margin: 0;
+  color: var(--muted);
 }
 
 @media (max-width: 980px) {

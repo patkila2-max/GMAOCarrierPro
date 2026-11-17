@@ -24,6 +24,7 @@
           <a class="nav-item" href="#team">Team</a>
           <a class="nav-item" href="#inventory">Inventory</a>
           <a class="nav-item" href="#activity">Activity</a>
+          <a class="nav-item" href="#reports">Reports</a>
           <a class="nav-item" href="#schedule">Schedule</a>
         </nav>
       </aside>
@@ -297,6 +298,19 @@
               <tbody id="activityTable"></tbody>
             </table>
           </div>
+        </section>
+
+        <section id="reports" class="panel">
+          <div class="panel-header split-header">
+            <h3>Operations reports</h3>
+            <div class="report-actions">
+              <button id="downloadCsvBtn" class="secondary-btn" type="button">Download CSV</button>
+              <button id="downloadJsonBtn" class="primary-btn" type="button">Download JSON</button>
+            </div>
+          </div>
+
+          <div id="reportSummary" class="report-grid"></div>
+          <div id="reportAlerts" class="alert-list"></div>
         </section>
 
         <section class="panel">
