@@ -1,92 +1,121 @@
 const express = require('express');
+const fs = require('fs');
 const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const DATA_DIR = path.join(__dirname, 'data');
+const DATA_FILE = path.join(DATA_DIR, 'store.json');
 
-app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+const baseState = {
+  assets: [
+    {
+      id: 'AST-101',
+      name: 'Boiler B-17',
+      type: 'Mechanical',
+      location: 'Plant 1',
+      condition: 'Good',
+      lastService: '2026-03-12',
+      availability: 96,
+      status: 'Operational'
+    },
+    {
+      id: 'AST-207',
+      name: 'Air Compressor C-3',
+      type: 'Utility',
+      location: 'Plant 2',
+      condition: 'Watch',
+      lastService: '2026-02-18',
+      availability: 88,
+      status: 'Operational'
+    },
+    {
+      id: 'AST-304',
+      name: 'Cooling Tower CT-9',
+      type: 'HVAC',
+      location: 'North Wing',
+      condition: 'Good',
+      lastService: '2026-04-04',
+      availability: 94,
+      status: 'Operational'
+    },
+    {
+      id: 'AST-412',
+      name: 'Generator G-2',
+      type: 'Power',
+      location: 'Backup Yard',
+      condition: 'Critical',
+      lastService: '2026-01-21',
+      availability: 71,
+      status: 'Maintenance'
+    }
+  ],
+  workOrders: [
+    { id: 'WO-2047', assetId: 'AST-101', title: 'Inspect pressure relief valve', priority: 'High', status: 'Open', dueDate: '2026-11-22', technician: 'R. Silva', category: 'Safety' },
+    { id: 'WO-2048', assetId: 'AST-207', title: 'Replace drive belt and verify alignment', priority: 'Medium', status: 'In Progress', dueDate: '2026-11-25', technician: 'J. Patel', category: 'Reliability' },
+    { id: 'WO-2049', assetId: 'AST-412', title: 'Complete emergency generator load test', priority: 'Critical', status: 'Open', dueDate: '2026-11-18', technician: 'M. Gomez', category: 'Power' },
+    { id: 'WO-2050', assetId: 'AST-304', title: 'Clean basin and inspect drift eliminators', priority: 'Low', status: 'Closed', dueDate: '2026-11-12', technician: 'S. Nguyen', category: 'HVAC' }
+  ],
+  schedule: [
+    { id: 'PM-5002', assetId: 'AST-304', task: 'Cooling tower cleaning', frequency: 'Monthly', nextDue: '2026-11-25', owner: 'Facilities' },
+    { id: 'PM-5003', assetId: 'AST-101', task: 'Pressure vessel inspection', frequency: 'Quarterly', nextDue: '2026-11-29', owner: 'Safety' },
+    { id: 'PM-5004', assetId: 'AST-207', task: 'Lubrication and vibration check', frequency: 'Bi-weekly', nextDue: '2026-11-20', owner: 'Reliability' }
+  ],
+  technicians: [
+    { id: 2, name: 'R. Silva', role: 'Lead Technician', availability: 'On site', assigned: 2 },
+    { id: 3, name: 'J. Patel', role: 'Maintenance Engineer', availability: 'Available', assigned: 1 },
+    { id: 4, name: 'M. Gomez', role: 'Electrical Specialist', availability: 'In transit', assigned: 3 }
+  ],
+  maintenanceLog: [
+    { id: 'LOG-1001', assetId: 'AST-101', technician: 'R. Silva', action: 'Valve inspection completed', status: 'Completed', date: '2026-11-16' },
+    { id: 'LOG-1002', assetId: 'AST-207', technician: 'J. Patel', action: 'Belt alignment verified', status: 'In progress', date: '2026-11-17' },
+    { id: 'LOG-1003', assetId: 'AST-412', technician: 'M. Gomez', action: 'Generator load test scheduled', status: 'Pending', date: '2026-11-18' }
+  ],
+  inventory: [
+    { id: 'INV-1001', name: 'Valve gasket kit', sku: 'VG-44', quantity: 14, location: 'Spare Bay A', status: 'Ready' },
+    { id: 'INV-1002', name: 'Drive belt set', sku: 'DB-120', quantity: 6, location: 'Tool Room', status: 'Low' },
+    { id: 'INV-1003', name: 'Transformer fuse', sku: 'TF-9', quantity: 22, location: 'Warehouse B', status: 'Ready' }
+  ],
+  users: [
+    { id: 1, username: 'admin', password: 'admin123', name: 'Admin User', role: 'administrator' },
+    { id: 2, username: 'r.silva', password: 'tech123', name: 'R. Silva', role: 'technician' },
+    { id: 3, username: 'j.patel', password: 'tech123', name: 'J. Patel', role: 'technician' },
+    { id: 4, username: 'm.gomez', password: 'tech123', name: 'M. Gomez', role: 'technician' }
+  ]
+};
 
-const users = [
-  { id: 1, username: 'admin', password: 'admin123', name: 'Admin User', role: 'administrator' },
-  { id: 2, username: 'r.silva', password: 'tech123', name: 'R. Silva', role: 'technician' },
-  { id: 3, username: 'j.patel', password: 'tech123', name: 'J. Patel', role: 'technician' },
-  { id: 4, username: 'm.gomez', password: 'tech123', name: 'M. Gomez', role: 'technician' }
-];
-
-const technicianProfiles = [
-  { id: 2, name: 'R. Silva', role: 'Lead Technician', availability: 'On site', assigned: 2 },
-  { id: 3, name: 'J. Patel', role: 'Maintenance Engineer', availability: 'Available', assigned: 1 },
-  { id: 4, name: 'M. Gomez', role: 'Electrical Specialist', availability: 'In transit', assigned: 3 }
-];
-
-const maintenanceLog = [
-  { id: 'LOG-1001', assetId: 'AST-101', technician: 'R. Silva', action: 'Valve inspection completed', status: 'Completed', date: '2026-11-16' },
-  { id: 'LOG-1002', assetId: 'AST-207', technician: 'J. Patel', action: 'Belt alignment verified', status: 'In progress', date: '2026-11-17' },
-  { id: 'LOG-1003', assetId: 'AST-412', technician: 'M. Gomez', action: 'Generator load test scheduled', status: 'Pending', date: '2026-11-18' }
-];
-
-const assets = [
-  {
-    id: 'AST-101',
-    name: 'Boiler B-17',
-    type: 'Mechanical',
-    location: 'Plant 1',
-    condition: 'Good',
-    lastService: '2026-03-12',
-    availability: 96,
-    status: 'Operational'
-  },
-  {
-    id: 'AST-207',
-    name: 'Air Compressor C-3',
-    type: 'Utility',
-    location: 'Plant 2',
-    condition: 'Watch',
-    lastService: '2026-02-18',
-    availability: 88,
-    status: 'Operational'
-  },
-  {
-    id: 'AST-304',
-    name: 'Cooling Tower CT-9',
-    type: 'HVAC',
-    location: 'North Wing',
-    condition: 'Good',
-    lastService: '2026-04-04',
-    availability: 94,
-    status: 'Operational'
-  },
-  {
-    id: 'AST-412',
-    name: 'Generator G-2',
-    type: 'Power',
-    location: 'Backup Yard',
-    condition: 'Critical',
-    lastService: '2026-01-21',
-    availability: 71,
-    status: 'Maintenance'
+function ensureDataFile() {
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
   }
-];
 
-const workOrders = [
-  { id: 'WO-2047', assetId: 'AST-101', title: 'Inspect pressure relief valve', priority: 'High', status: 'Open', dueDate: '2026-11-22', technician: 'R. Silva', category: 'Safety' },
-  { id: 'WO-2048', assetId: 'AST-207', title: 'Replace drive belt and verify alignment', priority: 'Medium', status: 'In Progress', dueDate: '2026-11-25', technician: 'J. Patel', category: 'Reliability' },
-  { id: 'WO-2049', assetId: 'AST-412', title: 'Complete emergency generator load test', priority: 'Critical', status: 'Open', dueDate: '2026-11-18', technician: 'M. Gomez', category: 'Power' },
-  { id: 'WO-2050', assetId: 'AST-304', title: 'Clean basin and inspect drift eliminators', priority: 'Low', status: 'Closed', dueDate: '2026-11-12', technician: 'S. Nguyen', category: 'HVAC' }
-];
+  if (!fs.existsSync(DATA_FILE)) {
+    fs.writeFileSync(DATA_FILE, JSON.stringify(baseState, null, 2), 'utf8');
+  }
+}
 
-const schedule = [
-  { id: 'PM-5002', assetId: 'AST-304', task: 'Cooling tower cleaning', frequency: 'Monthly', nextDue: '2026-11-25', owner: 'Facilities' },
-  { id: 'PM-5003', assetId: 'AST-101', task: 'Pressure vessel inspection', frequency: 'Quarterly', nextDue: '2026-11-29', owner: 'Safety' },
-  { id: 'PM-5004', assetId: 'AST-207', task: 'Lubrication and vibration check', frequency: 'Bi-weekly', nextDue: '2026-11-20', owner: 'Reliability' }
-];
+function readStore() {
+  ensureDataFile();
+  const raw = fs.readFileSync(DATA_FILE, 'utf8');
+  try {
+    return JSON.parse(raw);
+  } catch (error) {
+    return { ...baseState };
+  }
+}
 
-const getOverview = () => {
+function writeStore(store) {
+  ensureDataFile();
+  fs.writeFileSync(DATA_FILE, JSON.stringify(store, null, 2), 'utf8');
+}
+
+function getOverview(store) {
+  const assets = store.assets || [];
+  const workOrders = store.workOrders || [];
   const openWorkOrders = workOrders.filter((item) => item.status !== 'Closed').length;
   const critical = workOrders.filter((item) => item.priority === 'Critical').length;
   const compliance = 88;
-  const uptime = Math.round(assets.reduce((sum, asset) => sum + asset.availability, 0) / assets.length);
+  const uptime = Math.round(assets.reduce((sum, asset) => sum + Number(asset.availability || 0), 0) / Math.max(assets.length, 1));
 
   return {
     summary: { openWorkOrders, critical, compliance, uptime },
@@ -99,20 +128,19 @@ const getOverview = () => {
       { month: 'Jun', value: 88 }
     ]
   };
-};
+}
 
-const generateAssetId = () => {
-  const numeric = assets.length + 1;
-  return `AST-${String(numeric).padStart(3, '0')}`;
-};
+app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/api/health', (req, res) => {
   res.json({ ok: true, service: 'GMAO Carrier Pro', timestamp: new Date().toISOString() });
 });
 
 app.post('/api/login', (req, res) => {
+  const store = readStore();
   const { username, password } = req.body || {};
-  const user = users.find((entry) => entry.username === username && entry.password === password);
+  const user = (store.users || []).find((entry) => entry.username === username && entry.password === password);
 
   if (!user) {
     return res.status(401).json({ error: 'Invalid username or password.' });
@@ -128,8 +156,9 @@ app.get('/api/me', (req, res) => {
     return res.status(401).json({ error: 'Authentication required.' });
   }
 
+  const store = readStore();
   const userId = Number(token.split('-')[1]);
-  const user = users.find((entry) => entry.id === userId);
+  const user = (store.users || []).find((entry) => entry.id === userId);
 
   if (!user) {
     return res.status(401).json({ error: 'Invalid session.' });
@@ -139,12 +168,13 @@ app.get('/api/me', (req, res) => {
 });
 
 app.get('/api/overview', (req, res) => {
-  res.json(getOverview());
+  res.json(getOverview(readStore()));
 });
 
 app.get('/api/assets', (req, res) => {
+  const store = readStore();
   const { type, q } = req.query;
-  let filtered = [...assets];
+  let filtered = [...(store.assets || [])];
 
   if (type) {
     filtered = filtered.filter((asset) => asset.type.toLowerCase() === String(type).toLowerCase());
@@ -163,7 +193,8 @@ app.get('/api/assets', (req, res) => {
 });
 
 app.get('/api/assets/:assetId', (req, res) => {
-  const asset = assets.find((item) => item.id === req.params.assetId);
+  const store = readStore();
+  const asset = (store.assets || []).find((item) => item.id === req.params.assetId);
   if (!asset) {
     return res.status(404).json({ error: 'Asset not found.' });
   }
@@ -172,14 +203,16 @@ app.get('/api/assets/:assetId', (req, res) => {
 });
 
 app.post('/api/assets', (req, res) => {
+  const store = readStore();
   const { name, type, location, condition = 'Good', availability = 90 } = req.body || {};
 
   if (!name || !type || !location) {
     return res.status(400).json({ error: 'Name, type, and location are required.' });
   }
 
+  const nextNumber = (store.assets || []).length + 1;
   const asset = {
-    id: generateAssetId(),
+    id: `AST-${String(nextNumber).padStart(3, '0')}`,
     name,
     type,
     location,
@@ -189,13 +222,16 @@ app.post('/api/assets', (req, res) => {
     availability: Number(availability)
   };
 
-  assets.unshift(asset);
+  const assets = [asset, ...(store.assets || [])];
+  const nextStore = { ...store, assets };
+  writeStore(nextStore);
   res.status(201).json(asset);
 });
 
 app.get('/api/work-orders', (req, res) => {
+  const store = readStore();
   const { status, priority } = req.query;
-  let filtered = [...workOrders];
+  let filtered = [...(store.workOrders || [])];
 
   if (status) {
     filtered = filtered.filter((item) => item.status.toLowerCase() === String(status).toLowerCase());
@@ -208,16 +244,8 @@ app.get('/api/work-orders', (req, res) => {
   res.json(filtered);
 });
 
-app.get('/api/work-orders/:id', (req, res) => {
-  const workOrder = workOrders.find((item) => item.id === req.params.id);
-  if (!workOrder) {
-    return res.status(404).json({ error: 'Work order not found.' });
-  }
-
-  res.json(workOrder);
-});
-
 app.post('/api/work-orders', (req, res) => {
+  const store = readStore();
   const { title, assetId, priority = 'Medium', status = 'Open', technician = 'Unassigned', dueDate } = req.body || {};
 
   if (!title || !assetId) {
@@ -236,45 +264,80 @@ app.post('/api/work-orders', (req, res) => {
     category: 'General'
   };
 
-  workOrders.unshift(newWorkOrder);
+  const workOrders = [newWorkOrder, ...(store.workOrders || [])];
+  writeStore({ ...store, workOrders });
   res.status(201).json(newWorkOrder);
 });
 
 app.patch('/api/work-orders/:id', (req, res) => {
-  const index = workOrders.findIndex((item) => item.id === req.params.id);
+  const store = readStore();
+  const index = (store.workOrders || []).findIndex((item) => item.id === req.params.id);
   if (index === -1) {
     return res.status(404).json({ error: 'Work order not found.' });
   }
 
   const { status, priority, technician, dueDate } = req.body || {};
+  const workOrders = [...(store.workOrders || [])];
   if (status) workOrders[index].status = status;
   if (priority) workOrders[index].priority = priority;
   if (technician) workOrders[index].technician = technician;
   if (dueDate) workOrders[index].dueDate = dueDate;
 
+  writeStore({ ...store, workOrders });
   res.json(workOrders[index]);
 });
 
 app.delete('/api/work-orders/:id', (req, res) => {
-  const index = workOrders.findIndex((item) => item.id === req.params.id);
-  if (index === -1) {
+  const store = readStore();
+  const workOrders = (store.workOrders || []).filter((item) => item.id !== req.params.id);
+  if (workOrders.length === (store.workOrders || []).length) {
     return res.status(404).json({ error: 'Work order not found.' });
   }
 
-  const [removed] = workOrders.splice(index, 1);
-  res.json({ deleted: true, workOrder: removed });
+  writeStore({ ...store, workOrders });
+  res.json({ deleted: true, workOrderId: req.params.id });
 });
 
 app.get('/api/technicians', (req, res) => {
-  res.json(technicianProfiles);
+  const store = readStore();
+  res.json(store.technicians || []);
 });
 
 app.get('/api/maintenance-log', (req, res) => {
-  res.json(maintenanceLog);
+  const store = readStore();
+  res.json(store.maintenanceLog || []);
 });
 
 app.get('/api/schedule', (req, res) => {
-  res.json(schedule);
+  const store = readStore();
+  res.json(store.schedule || []);
+});
+
+app.get('/api/inventory', (req, res) => {
+  const store = readStore();
+  res.json(store.inventory || []);
+});
+
+app.post('/api/inventory', (req, res) => {
+  const store = readStore();
+  const { name, sku, quantity = 0, location = 'Warehouse', status = 'Ready' } = req.body || {};
+
+  if (!name || !sku) {
+    return res.status(400).json({ error: 'Name and SKU are required.' });
+  }
+
+  const item = {
+    id: `INV-${Date.now().toString().slice(-6)}`,
+    name,
+    sku,
+    quantity: Number(quantity),
+    location,
+    status
+  };
+
+  const inventory = [item, ...(store.inventory || [])];
+  writeStore({ ...store, inventory });
+  res.status(201).json(item);
 });
 
 app.get('*', (req, res) => {

@@ -22,6 +22,7 @@
           <a class="nav-item" href="#assets">Assets</a>
           <a class="nav-item" href="#work-orders">Work Orders</a>
           <a class="nav-item" href="#team">Team</a>
+          <a class="nav-item" href="#inventory">Inventory</a>
           <a class="nav-item" href="#activity">Activity</a>
           <a class="nav-item" href="#schedule">Schedule</a>
         </nav>
@@ -226,6 +227,57 @@
           <div id="technicianList" class="team-grid"></div>
         </section>
 
+        <section id="inventory" class="panel">
+          <div class="panel-header">
+            <h3>Inventory & spare parts</h3>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Item</th>
+                  <th>SKU</th>
+                  <th>Quantity</th>
+                  <th>Location</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="inventoryTable"></tbody>
+            </table>
+          </div>
+
+          <form id="inventoryForm" class="mini-form inline-form">
+            <h4>Add inventory item</h4>
+            <label>
+              Item name
+              <input name="name" type="text" placeholder="Valve gasket kit" required />
+            </label>
+            <label>
+              SKU
+              <input name="sku" type="text" placeholder="VG-44" required />
+            </label>
+            <label>
+              Quantity
+              <input name="quantity" type="number" min="0" value="0" required />
+            </label>
+            <label>
+              Location
+              <input name="location" type="text" placeholder="Spare Bay A" />
+            </label>
+            <label>
+              Status
+              <select name="status">
+                <option value="Ready">Ready</option>
+                <option value="Low">Low</option>
+                <option value="Ordered">Ordered</option>
+              </select>
+            </label>
+            <button class="primary-btn" type="submit">Add item</button>
+          </form>
+        </section>
+
         <section id="activity" class="panel">
           <div class="panel-header">
             <h3>Maintenance activity</h3>
@@ -245,6 +297,13 @@
               <tbody id="activityTable"></tbody>
             </table>
           </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <h3>Preventive maintenance calendar</h3>
+          </div>
+          <div id="calendarGrid" class="calendar-grid"></div>
         </section>
 
         <section id="schedule" class="panel">

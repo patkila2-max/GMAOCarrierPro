@@ -405,12 +405,14 @@ th {
 }
 
 .status-pill.open,
-.status-pill.in-progress {
+.status-pill.in-progress,
+.status-pill.pending {
   background: #dfeaff;
   color: var(--primary);
 }
 
-.status-pill.closed {
+.status-pill.closed,
+.status-pill.completed {
   background: #e3f5eb;
   color: var(--success);
 }
@@ -461,6 +463,44 @@ th {
 .action-btn.danger {
   background: #ffe7e7;
   color: var(--danger);
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.calendar-item {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #f8fbff;
+  padding: 12px;
+}
+
+.calendar-item strong {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.inventory-badge {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 6px 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: #e4f9ee;
+  color: var(--success);
+}
+
+.inventory-badge.low {
+  background: #fff1d8;
+  color: #b67c00;
+}
+
+.inventory-badge.ordered {
+  background: #dfeaff;
+  color: var(--primary);
 }
 
 @media (max-width: 980px) {

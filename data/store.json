@@ -1,0 +1,427 @@
+const state = {
+  token: localStorage.getItem('gmao-token') || '',
+  user: null
+};
+
+async function fetchJson(url, options = {}) {
+  const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+
+  if (state.token) {
+    headers.Authorization = `Bearer ${state.token}`;
+  }
+
+  const response = await fetch(url, {
+    ...options,
+    headers
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(errorBody || `Request failed: ${response.status}`);
+  }
+
+  return response.json();
+}
+
+function setAuthStatus(user) {
+  const status = document.getElementById('authStatus');
+  const loginPanel = document.getElementById('authPanel');
+  const logoutButton = document.getElementById('logoutBtn');
+
+  if (user) {
+    status.textContent = `${user.name} (${user.role})`;
+    loginPanel.style.display = 'none';
+    logoutButton.style.display = 'inline-block';
+  } else {
+    status.textContent = 'Not signed in';
+    loginPanel.style.display = 'block';
+    logoutButton.style.display = 'none';
+  }
+}
+
+async function loadSession() {
+  if (!state.token) {
+    state.user = null;
+    setAuthStatus(null);
+    return;
+  }
+
+  try {
+    const response = await fetchJson('/api/me');
+    state.user = response.user;
+    setAuthStatus(response.user);
+  } catch (error) {
+    console.error('Session validation failed:', error);
+    state.user = null;
+    state.token = '';
+    localStorage.removeItem('gmao-token');
+    setAuthStatus(null);
+  }
+}
+
+async function login(event) {
+  event.preventDefault();
+  const formData = new FormData(event.currentTarget);
+  const payload = {
+    username: formData.get('username'),
+    password: formData.get('password')
+  };
+
+  try {
+    const result = await fetchJson('/api/login', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+
+    state.token = result.token;
+    state.user = result.user;
+    localStorage.setItem('gmao-token', result.token);
+    setAuthStatus(result.user);
+    event.currentTarget.reset();
+    await loadDashboard();
+  } catch (error) {
+    console.error('Login failed:', error);
+    alert('Invalid username or password.');
+  }
+}
+
+function logout() {
+  state.token = '';
+  state.user = null;
+  localStorage.removeItem('gmao-token');
+  setAuthStatus(null);
+}
+
+function renderTrendChart(trends) {
+  const container = document.getElementById('trendChart');
+  if (!container) return;
+
+  const maxValue = Math.max(...trends.map((item) => item.value));
+  container.innerHTML = trends
+    .map(
+      (item) => `
+        <div class="bar" data-month="${item.month}" style="height: ${(item.value / maxValue) * 100}%"></div>
+      `
+    )
+    .join('');
+}
+
+function renderAssets(assets) {
+  const filterValue = (document.getElementById('assetFilter')?.value || '').trim().toLowerCase();
+  const typeValue = (document.getElementById('assetTypeFilter')?.value || '').trim();
+  const container = document.getElementById('assetsList');
+  if (!container) return;
+
+  const filtered = assets.filter((asset) => {
+    const matchesText = !filterValue || [asset.name, asset.id, asset.location, asset.type].some((value) => String(value).toLowerCase().includes(filterValue));
+    const matchesType = !typeValue || asset.type === typeValue;
+    return matchesText && matchesType;
+  });
+
+  if (!filtered.length) {
+    container.innerHTML = '<p class="empty-state">No assets match the current filters.</p>';
+    return;
+  }
+
+  container.innerHTML = filtered
+    .map((asset) => {
+      const badgeClass = asset.condition === 'Critical' ? 'critical' : asset.condition === 'Watch' ? 'watch' : 'good';
+      return `
+        <article class="asset-card">
+          <div class="topline">
+            <h4>${asset.name}</h4>
+            <span class="badge ${badgeClass}">${asset.condition}</span>
+          </div>
+          <p class="asset-meta">${asset.id} • ${asset.type}</p>
+          <p class="asset-meta">Location: ${asset.location}</p>
+          <p class="asset-meta">Last service: ${asset.lastService}</p>
+          <div class="uptime">
+            <span>Availability</span>
+            <strong>${asset.availability}%</strong>
+          </div>
+          <div class="progress">
+            <span style="width:${asset.availability}%"></span>
+          </div>
+        </article>
+      `;
+    })
+    .join('');
+}
+
+function renderWorkOrders(workOrders) {
+  const statusFilter = (document.getElementById('workOrderStatusFilter')?.value || '').trim();
+  const priorityFilter = (document.getElementById('workOrderPriorityFilter')?.value || '').trim();
+  const container = document.getElementById('workOrdersTable');
+  if (!container) return;
+
+  const filtered = workOrders.filter((item) => {
+    const matchesStatus = !statusFilter || item.status === statusFilter;
+    const matchesPriority = !priorityFilter || item.priority === priorityFilter;
+    return matchesStatus && matchesPriority;
+  });
+
+  if (!filtered.length) {
+    container.innerHTML = '<tr><td colspan="8">No work orders match the selected filters.</td></tr>';
+    return;
+  }
+
+  container.innerHTML = filtered
+    .map(
+      (item) => `
+        <tr>
+          <td>${item.id}</td>
+          <td>${item.assetId}</td>
+          <td>${item.title}</td>
+          <td><span class="priority-pill ${item.priority.toLowerCase()}">${item.priority}</span></td>
+          <td><span class="status-pill ${item.status.toLowerCase().replace(/\s+/g, '-')}">${item.status}</span></td>
+          <td>${item.technician}</td>
+          <td>${item.dueDate}</td>
+          <td><button class="action-btn danger" data-work-order-id="${item.id}" type="button">Close</button></td>
+        </tr>
+      `
+    )
+    .join('');
+
+  document.querySelectorAll('[data-work-order-id]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const id = button.getAttribute('data-work-order-id');
+      try {
+        await fetchJson(`/api/work-orders/${id}`, { method: 'DELETE' });
+        await loadDashboard();
+      } catch (error) {
+        console.error('Failed to close work order:', error);
+      }
+    });
+  });
+}
+
+function renderTechnicians(technicians) {
+  const container = document.getElementById('technicianList');
+  if (!container) return;
+
+  container.innerHTML = technicians
+    .map(
+      (tech) => `
+        <article class="team-card">
+          <div class="topline">
+            <h4>${tech.name}</h4>
+            <span class="badge ${tech.availability === 'Available' ? 'good' : tech.availability === 'In transit' ? 'watch' : 'critical'}">${tech.availability}</span>
+          </div>
+          <p class="team-meta">${tech.role}</p>
+          <p class="team-meta">Assigned jobs: ${tech.assigned}</p>
+        </article>
+      `
+    )
+    .join('');
+}
+
+function renderInventory(inventory) {
+  const container = document.getElementById('inventoryTable');
+  if (!container) return;
+
+  container.innerHTML = inventory
+    .map((item) => {
+      const badgeClass = item.status.toLowerCase() === 'low' ? 'low' : item.status.toLowerCase() === 'ordered' ? 'ordered' : 'ready';
+      return `
+        <tr>
+          <td>${item.id}</td>
+          <td>${item.name}</td>
+          <td>${item.sku}</td>
+          <td>${item.quantity}</td>
+          <td>${item.location}</td>
+          <td><span class="inventory-badge ${badgeClass}">${item.status}</span></td>
+        </tr>
+      `;
+    })
+    .join('');
+}
+
+function renderActivity(logEntries) {
+  const container = document.getElementById('activityTable');
+  if (!container) return;
+
+  container.innerHTML = logEntries
+    .map(
+      (entry) => `
+        <tr>
+          <td>${entry.id}</td>
+          <td>${entry.assetId}</td>
+          <td>${entry.technician}</td>
+          <td>${entry.action}</td>
+          <td><span class="status-pill ${entry.status.toLowerCase().replace(/\s+/g, '-')}">${entry.status}</span></td>
+          <td>${entry.date}</td>
+        </tr>
+      `
+    )
+    .join('');
+}
+
+function renderCalendar(schedule) {
+  const container = document.getElementById('calendarGrid');
+  if (!container) return;
+
+  container.innerHTML = schedule
+    .map(
+      (item) => `
+        <div class="calendar-item">
+          <strong>${item.task}</strong>
+          <div>${item.assetId}</div>
+          <div>${item.frequency}</div>
+          <div>${item.nextDue}</div>
+        </div>
+      `
+    )
+    .join('');
+}
+
+function renderSchedule(schedule) {
+  const container = document.getElementById('scheduleTable');
+  if (!container) return;
+
+  container.innerHTML = schedule
+    .map(
+      (item) => `
+        <tr>
+          <td>${item.id}</td>
+          <td>${item.assetId}</td>
+          <td>${item.task}</td>
+          <td>${item.frequency}</td>
+          <td>${item.nextDue}</td>
+          <td>${item.owner}</td>
+        </tr>
+      `
+    )
+    .join('');
+}
+
+function renderSummary(summary) {
+  document.getElementById('openWorkOrders').textContent = summary.openWorkOrders;
+  document.getElementById('criticalIssues').textContent = summary.critical;
+  document.getElementById('complianceRate').textContent = `${summary.compliance}%`;
+  document.getElementById('uptimeRate').textContent = `${summary.uptime}%`;
+}
+
+async function loadDashboard() {
+  try {
+    const overview = await fetchJson('/api/overview');
+    const assets = await fetchJson('/api/assets');
+    const workOrders = await fetchJson('/api/work-orders');
+    const technicians = await fetchJson('/api/technicians');
+    const activity = await fetchJson('/api/maintenance-log');
+    const schedule = await fetchJson('/api/schedule');
+    const inventory = await fetchJson('/api/inventory');
+
+    renderSummary(overview.summary);
+    renderTrendChart(overview.trends);
+    renderAssets(assets);
+    renderWorkOrders(workOrders);
+    renderTechnicians(technicians);
+    renderInventory(inventory);
+    renderActivity(activity);
+    renderCalendar(schedule);
+    renderSchedule(schedule);
+  } catch (error) {
+    console.error('Failed to load dashboard data:', error);
+  }
+}
+
+async function handleAssetSubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const formData = new FormData(form);
+
+  const payload = {
+    name: formData.get('name'),
+    type: formData.get('type'),
+    location: formData.get('location'),
+    condition: formData.get('condition'),
+    availability: Number(formData.get('availability') || 90)
+  };
+
+  try {
+    await fetchJson('/api/assets', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+    form.reset();
+    document.getElementById('assetTypeFilter').value = '';
+    await loadDashboard();
+  } catch (error) {
+    console.error('Failed to create asset:', error);
+    alert('Unable to create the asset. Please check the required fields.');
+  }
+}
+
+async function handleWorkOrderSubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const formData = new FormData(form);
+
+  const payload = {
+    title: formData.get('title'),
+    assetId: formData.get('assetId'),
+    priority: formData.get('priority'),
+    status: formData.get('status'),
+    technician: formData.get('technician'),
+    dueDate: formData.get('dueDate')
+  };
+
+  try {
+    await fetchJson('/api/work-orders', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+    form.reset();
+    await loadDashboard();
+  } catch (error) {
+    console.error('Failed to create work order:', error);
+    alert('Unable to create the work order. Please review the form and try again.');
+  }
+}
+
+async function handleInventorySubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const formData = new FormData(form);
+
+  const payload = {
+    name: formData.get('name'),
+    sku: formData.get('sku'),
+    quantity: Number(formData.get('quantity') || 0),
+    location: formData.get('location') || 'Warehouse',
+    status: formData.get('status') || 'Ready'
+  };
+
+  try {
+    await fetchJson('/api/inventory', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+    form.reset();
+    await loadDashboard();
+  } catch (error) {
+    console.error('Failed to add inventory item:', error);
+    alert('Unable to add the item to inventory.');
+  }
+}
+
+window.addEventListener('DOMContentLoaded', async () => {
+  const loginForm = document.getElementById('loginForm');
+  const logoutButton = document.getElementById('logoutBtn');
+  const refreshBtn = document.getElementById('refreshBtn');
+
+  loginForm.addEventListener('submit', login);
+  logoutButton.addEventListener('click', logout);
+  refreshBtn.addEventListener('click', loadDashboard);
+
+  document.getElementById('assetFilter').addEventListener('input', () => loadDashboard());
+  document.getElementById('assetTypeFilter').addEventListener('change', () => loadDashboard());
+  document.getElementById('workOrderStatusFilter').addEventListener('change', () => loadDashboard());
+  document.getElementById('workOrderPriorityFilter').addEventListener('change', () => loadDashboard());
+  document.getElementById('assetForm').addEventListener('submit', handleAssetSubmit);
+  document.getElementById('workOrderForm').addEventListener('submit', handleWorkOrderSubmit);
+  document.getElementById('inventoryForm').addEventListener('submit', handleInventorySubmit);
+
+  await loadSession();
+  await loadDashboard();
+});
