@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GMAO Carrier Pro</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-badge">G</div>
+          <div>
+            <p class="eyebrow">Maintenance</p>
+            <h1>Carrier Pro</h1>
+          </div>
+        </div>
+
+        <nav class="nav">
+          <a class="nav-item active" href="#dashboard">Overview</a>
+          <a class="nav-item" href="#assets">Assets</a>
+          <a class="nav-item" href="#work-orders">Work Orders</a>
+          <a class="nav-item" href="#schedule">Schedule</a>
+        </nav>
+      </aside>
+
+      <main class="main-content">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Operations dashboard</p>
+            <h2>Maintenance Management System</h2>
+          </div>
+          <button class="primary-btn">Generate report</button>
+        </header>
+
+        <section id="dashboard" class="dashboard-grid">
+          <article class="stat-card">
+            <span class="stat-label">Open work orders</span>
+            <strong id="openWorkOrders">0</strong>
+            <small>Across all facilities</small>
+          </article>
+          <article class="stat-card accent">
+            <span class="stat-label">Critical issues</span>
+            <strong id="criticalIssues">0</strong>
+            <small>Needs immediate action</small>
+          </article>
+          <article class="stat-card success">
+            <span class="stat-label">Compliance</span>
+            <strong id="complianceRate">0%</strong>
+            <small>Preventive maintenance targets</small>
+          </article>
+          <article class="stat-card warning">
+            <span class="stat-label">Asset uptime</span>
+            <strong id="uptimeRate">0%</strong>
+            <small>Last 30 days</small>
+          </article>
+        </section>
+
+        <section class="panel-chart">
+          <div class="panel-header">
+            <h3>Operational trend</h3>
+          </div>
+          <div id="trendChart" class="trend-chart"></div>
+        </section>
+
+        <section id="assets" class="panel">
+          <div class="panel-header">
+            <h3>Asset register</h3>
+          </div>
+          <div id="assetsList" class="asset-grid"></div>
+        </section>
+
+        <section id="work-orders" class="panel split-panel">
+          <div class="panel-header">
+            <h3>Work orders</h3>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Asset</th>
+                  <th>Title</th>
+                  <th>Priority</th>
+                  <th>Status</th>
+                  <th>Technician</th>
+                  <th>Due</th>
+                </tr>
+              </thead>
+              <tbody id="workOrdersTable"></tbody>
+            </table>
+          </div>
+
+          <form id="workOrderForm" class="mini-form">
+            <h4>Create work order</h4>
+            <label>
+              Title
+              <input name="title" type="text" placeholder="e.g. Replace valve gasket" required />
+            </label>
+            <label>
+              Asset ID
+              <input name="assetId" type="text" placeholder="AST-101" required />
+            </label>
+            <label>
+              Priority
+              <select name="priority">
+                <option>Low</option>
+                <option selected>Medium</option>
+                <option>High</option>
+                <option>Critical</option>
+              </select>
+            </label>
+            <label>
+              Status
+              <select name="status">
+                <option selected>Open</option>
+                <option>In Progress</option>
+                <option>Closed</option>
+              </select>
+            </label>
+            <label>
+              Technician
+              <input name="technician" type="text" placeholder="Assigned technician" />
+            </label>
+            <label>
+              Due date
+              <input name="dueDate" type="date" />
+            </label>
+            <button class="primary-btn" type="submit">Add work order</button>
+          </form>
+        </section>
+
+        <section id="schedule" class="panel">
+          <div class="panel-header">
+            <h3>Maintenance schedule</h3>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Asset</th>
+                  <th>Task</th>
+                  <th>Frequency</th>
+                  <th>Next due</th>
+                  <th>Owner</th>
+                </tr>
+              </thead>
+              <tbody id="scheduleTable"></tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

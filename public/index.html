@@ -1,0 +1,196 @@
+const express = require('express');
+const path = require('path');
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
+
+const assets = [
+  {
+    id: 'AST-101',
+    name: 'Boiler B-17',
+    type: 'Mechanical',
+    location: 'Plant 1',
+    condition: 'Good',
+    lastService: '2026-03-12',
+    availability: 96,
+    status: 'Operational'
+  },
+  {
+    id: 'AST-207',
+    name: 'Air Compressor C-3',
+    type: 'Utility',
+    location: 'Plant 2',
+    condition: 'Watch',
+    lastService: '2026-02-18',
+    availability: 88,
+    status: 'Operational'
+  },
+  {
+    id: 'AST-304',
+    name: 'Cooling Tower CT-9',
+    type: 'HVAC',
+    location: 'North Wing',
+    condition: 'Good',
+    lastService: '2026-04-04',
+    availability: 94,
+    status: 'Operational'
+  },
+  {
+    id: 'AST-412',
+    name: 'Generator G-2',
+    type: 'Power',
+    location: 'Backup Yard',
+    condition: 'Critical',
+    lastService: '2026-01-21',
+    availability: 71,
+    status: 'Maintenance'
+  }
+];
+
+const workOrders = [
+  {
+    id: 'WO-2047',
+    assetId: 'AST-101',
+    title: 'Inspect pressure relief valve',
+    priority: 'High',
+    status: 'Open',
+    dueDate: '2026-11-22',
+    technician: 'R. Silva',
+    category: 'Safety'
+  },
+  {
+    id: 'WO-2048',
+    assetId: 'AST-207',
+    title: 'Replace drive belt and verify alignment',
+    priority: 'Medium',
+    status: 'In Progress',
+    dueDate: '2026-11-25',
+    technician: 'J. Patel',
+    category: 'Reliability'
+  },
+  {
+    id: 'WO-2049',
+    assetId: 'AST-412',
+    title: 'Complete emergency generator load test',
+    priority: 'Critical',
+    status: 'Open',
+    dueDate: '2026-11-18',
+    technician: 'M. Gomez',
+    category: 'Power'
+  },
+  {
+    id: 'WO-2050',
+    assetId: 'AST-304',
+    title: 'Clean basin and inspect drift eliminators',
+    priority: 'Low',
+    status: 'Closed',
+    dueDate: '2026-11-12',
+    technician: 'S. Nguyen',
+    category: 'HVAC'
+  }
+];
+
+const schedule = [
+  {
+    id: 'PM-5002',
+    assetId: 'AST-304',
+    task: 'Cooling tower cleaning',
+    frequency: 'Monthly',
+    nextDue: '2026-11-25',
+    owner: 'Facilities'
+  },
+  {
+    id: 'PM-5003',
+    assetId: 'AST-101',
+    task: 'Pressure vessel inspection',
+    frequency: 'Quarterly',
+    nextDue: '2026-11-29',
+    owner: 'Safety'
+  },
+  {
+    id: 'PM-5004',
+    assetId: 'AST-207',
+    task: 'Lubrication and vibration check',
+    frequency: 'Bi-weekly',
+    nextDue: '2026-11-20',
+    owner: 'Reliability'
+  }
+];
+
+const getOverview = () => {
+  const openWorkOrders = workOrders.filter((item) => item.status !== 'Closed').length;
+  const critical = workOrders.filter((item) => item.priority === 'Critical').length;
+  const compliance = 88;
+  const uptime = Math.round(assets.reduce((sum, asset) => sum + asset.availability, 0) / assets.length);
+
+  return {
+    summary: {
+      openWorkOrders,
+      critical,
+      compliance,
+      uptime
+    },
+    trends: [
+      { month: 'Jan', value: 72 },
+      { month: 'Feb', value: 75 },
+      { month: 'Mar', value: 81 },
+      { month: 'Apr', value: 83 },
+      { month: 'May', value: 86 },
+      { month: 'Jun', value: 88 }
+    ]
+  };
+};
+
+app.get('/api/health', (req, res) => {
+  res.json({ ok: true, service: 'GMAO Carrier Pro', timestamp: new Date().toISOString() });
+});
+
+app.get('/api/overview', (req, res) => {
+  res.json(getOverview());
+});
+
+app.get('/api/assets', (req, res) => {
+  res.json(assets);
+});
+
+app.get('/api/work-orders', (req, res) => {
+  res.json(workOrders);
+});
+
+app.get('/api/schedule', (req, res) => {
+  res.json(schedule);
+});
+
+app.post('/api/work-orders', (req, res) => {
+  const { title, assetId, priority = 'Medium', status = 'Open', technician = 'Unassigned', dueDate } = req.body || {};
+
+  if (!title || !assetId) {
+    return res.status(400).json({ error: 'Title and assetId are required.' });
+  }
+
+  const nextId = `WO-${Math.floor(1000 + Math.random() * 9000)}`;
+  const newWorkOrder = {
+    id: nextId,
+    assetId,
+    title,
+    priority,
+    status,
+    dueDate: dueDate || new Date(Date.now() + 1000 * 60 * 60 * 24 * 7).toISOString().slice(0, 10),
+    technician,
+    category: 'General'
+  };
+
+  workOrders.unshift(newWorkOrder);
+  res.status(201).json(newWorkOrder);
+});
+
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+app.listen(PORT, () => {
+  console.log(`GMAO Carrier Pro running on http://localhost:${PORT}`);
+});
