@@ -109,15 +109,21 @@ select {
   margin-bottom: 24px;
 }
 
+.top-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .topbar h2 {
   margin: 0;
   font-size: clamp(1.7rem, 2vw, 2.2rem);
 }
 
-.primary-btn {
-  background: var(--primary);
+.primary-btn,
+.secondary-btn {
   border: none;
-  color: #fff;
   border-radius: 10px;
   padding: 12px 18px;
   font-weight: 600;
@@ -125,8 +131,27 @@ select {
   box-shadow: var(--shadow);
 }
 
+.primary-btn {
+  background: var(--primary);
+  color: #fff;
+}
+
 .primary-btn:hover {
   background: var(--primary-dark);
+}
+
+.secondary-btn {
+  background: #edf3ff;
+  color: var(--primary);
+}
+
+.auth-status {
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: #eef6ff;
+  color: var(--primary);
+  font-size: 0.78rem;
+  font-weight: 700;
 }
 
 .dashboard-grid {
@@ -200,7 +225,8 @@ select {
 .toolbar select,
 .filter-row select,
 .mini-form input,
-.mini-form select {
+.mini-form select,
+.auth-form input {
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 10px 12px;
@@ -237,27 +263,31 @@ select {
   color: var(--muted);
 }
 
-.asset-grid {
+.asset-grid,
+.team-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 16px;
 }
 
-.asset-card {
+.asset-card,
+.team-card {
   border: 1px solid var(--border);
   background: #f8fbff;
   border-radius: 12px;
   padding: 16px;
 }
 
-.asset-card .topline {
+.asset-card .topline,
+.team-card .topline {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 10px;
 }
 
-.asset-card h4 {
+.asset-card h4,
+.team-card h4 {
   margin: 0;
   font-size: 1rem;
 }
@@ -284,7 +314,8 @@ select {
   color: var(--danger);
 }
 
-.asset-meta {
+.asset-meta,
+.team-meta {
   margin: 0 0 8px;
   color: var(--muted);
   font-size: 0.9rem;
@@ -384,7 +415,8 @@ th {
   color: var(--success);
 }
 
-.mini-form {
+.mini-form,
+.auth-form {
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -402,12 +434,18 @@ th {
   margin: 0 0 4px;
 }
 
-.mini-form label {
+.mini-form label,
+.auth-form label {
   display: flex;
   flex-direction: column;
   gap: 6px;
   color: var(--muted);
   font-size: 0.85rem;
+}
+
+.auth-form {
+  max-width: 420px;
+  background: #fff;
 }
 
 .action-btn {

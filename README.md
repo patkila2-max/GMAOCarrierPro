@@ -1,7 +1,18 @@
+const state = {
+  token: localStorage.getItem('gmao-token') || '',
+  user: null
+};
+
 async function fetchJson(url, options = {}) {
+  const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+
+  if (state.token) {
+    headers.Authorization = `Bearer ${state.token}`;
+  }
+
   const response = await fetch(url, {
-    headers: { 'Content-Type': 'application/json' },
-    ...options
+    ...options,
+    headers
   });
 
   if (!response.ok) {
@@ -10,6 +21,75 @@ async function fetchJson(url, options = {}) {
   }
 
   return response.json();
+}
+
+function setAuthStatus(user) {
+  const status = document.getElementById('authStatus');
+  const loginPanel = document.getElementById('authPanel');
+  const logoutButton = document.getElementById('logoutBtn');
+
+  if (user) {
+    status.textContent = `${user.name} (${user.role})`;
+    loginPanel.style.display = 'none';
+    logoutButton.style.display = 'inline-block';
+  } else {
+    status.textContent = 'Not signed in';
+    loginPanel.style.display = 'block';
+    logoutButton.style.display = 'none';
+  }
+}
+
+async function loadSession() {
+  if (!state.token) {
+    state.user = null;
+    setAuthStatus(null);
+    return;
+  }
+
+  try {
+    const response = await fetchJson('/api/me');
+    state.user = response.user;
+    setAuthStatus(response.user);
+  } catch (error) {
+    console.error('Session validation failed:', error);
+    state.user = null;
+    state.token = '';
+    localStorage.removeItem('gmao-token');
+    setAuthStatus(null);
+  }
+}
+
+async function login(event) {
+  event.preventDefault();
+  const formData = new FormData(event.currentTarget);
+  const payload = {
+    username: formData.get('username'),
+    password: formData.get('password')
+  };
+
+  try {
+    const result = await fetchJson('/api/login', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+
+    state.token = result.token;
+    state.user = result.user;
+    localStorage.setItem('gmao-token', result.token);
+    setAuthStatus(result.user);
+    event.currentTarget.reset();
+    await loadDashboard();
+  } catch (error) {
+    console.error('Login failed:', error);
+    alert('Invalid username or password.');
+  }
+}
+
+function logout() {
+  state.token = '';
+  state.user = null;
+  localStorage.removeItem('gmao-token');
+  setAuthStatus(null);
 }
 
 function renderTrendChart(trends) {
@@ -115,6 +195,46 @@ function renderWorkOrders(workOrders) {
   });
 }
 
+function renderTechnicians(technicians) {
+  const container = document.getElementById('technicianList');
+  if (!container) return;
+
+  container.innerHTML = technicians
+    .map(
+      (tech) => `
+        <article class="team-card">
+          <div class="topline">
+            <h4>${tech.name}</h4>
+            <span class="badge ${tech.availability === 'Available' ? 'good' : tech.availability === 'In transit' ? 'watch' : 'critical'}">${tech.availability}</span>
+          </div>
+          <p class="team-meta">${tech.role}</p>
+          <p class="team-meta">Assigned jobs: ${tech.assigned}</p>
+        </article>
+      `
+    )
+    .join('');
+}
+
+function renderActivity(logEntries) {
+  const container = document.getElementById('activityTable');
+  if (!container) return;
+
+  container.innerHTML = logEntries
+    .map(
+      (entry) => `
+        <tr>
+          <td>${entry.id}</td>
+          <td>${entry.assetId}</td>
+          <td>${entry.technician}</td>
+          <td>${entry.action}</td>
+          <td><span class="status-pill ${entry.status.toLowerCase().replace(/\s+/g, '-')}">${entry.status}</span></td>
+          <td>${entry.date}</td>
+        </tr>
+      `
+    )
+    .join('');
+}
+
 function renderSchedule(schedule) {
   const container = document.getElementById('scheduleTable');
   if (!container) return;
@@ -147,12 +267,16 @@ async function loadDashboard() {
     const overview = await fetchJson('/api/overview');
     const assets = await fetchJson('/api/assets');
     const workOrders = await fetchJson('/api/work-orders');
+    const technicians = await fetchJson('/api/technicians');
+    const activity = await fetchJson('/api/maintenance-log');
     const schedule = await fetchJson('/api/schedule');
 
     renderSummary(overview.summary);
     renderTrendChart(overview.trends);
     renderAssets(assets);
     renderWorkOrders(workOrders);
+    renderTechnicians(technicians);
+    renderActivity(activity);
     renderSchedule(schedule);
   } catch (error) {
     console.error('Failed to load dashboard data:', error);
@@ -213,13 +337,22 @@ async function handleWorkOrderSubmit(event) {
   }
 }
 
-window.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('refreshBtn').addEventListener('click', loadDashboard);
+window.addEventListener('DOMContentLoaded', async () => {
+  const loginForm = document.getElementById('loginForm');
+  const logoutButton = document.getElementById('logoutBtn');
+  const refreshBtn = document.getElementById('refreshBtn');
+
+  loginForm.addEventListener('submit', login);
+  logoutButton.addEventListener('click', logout);
+  refreshBtn.addEventListener('click', loadDashboard);
+
   document.getElementById('assetFilter').addEventListener('input', () => loadDashboard());
   document.getElementById('assetTypeFilter').addEventListener('change', () => loadDashboard());
   document.getElementById('workOrderStatusFilter').addEventListener('change', () => loadDashboard());
   document.getElementById('workOrderPriorityFilter').addEventListener('change', () => loadDashboard());
   document.getElementById('assetForm').addEventListener('submit', handleAssetSubmit);
   document.getElementById('workOrderForm').addEventListener('submit', handleWorkOrderSubmit);
-  loadDashboard();
+
+  await loadSession();
+  await loadDashboard();
 });
