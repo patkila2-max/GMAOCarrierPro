@@ -1,413 +1,70 @@
-const express = require('express');
-const fs = require('fs');
-const path = require('path');
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0c1732" />
+    <title>GMAO Carrier Pro — Operations Reports</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="page-shell">
+      <header class="page-header">
+        <div>
+          <p class="eyebrow">GMAO Carrier Pro</p>
+          <h1>Operations reports</h1>
+          <p class="intro">Maintenance, asset, and inventory status at a glance.</p>
+        </div>
+        <button id="refreshReports" class="button" type="button">Refresh report</button>
+      </header>
 
-const app = express();
-const PORT = process.env.PORT || 3000;
-const DATA_DIR = path.join(__dirname, 'data');
-const DATA_FILE = path.join(DATA_DIR, 'store.json');
+      <section class="panel" aria-labelledby="report-heading">
+        <div class="panel-heading">
+          <div>
+            <h2 id="report-heading">Current overview</h2>
+            <p id="reportGenerated" class="muted" aria-live="polite">Loading report…</p>
+          </div>
+        </div>
+        <div id="reportSummary" class="summary-grid" aria-live="polite"></div>
+      </section>
 
-const baseState = {
-  assets: [
-    {
-      id: 'AST-101',
-      name: 'Boiler B-17',
-      type: 'Mechanical',
-      location: 'Plant 1',
-      condition: 'Good',
-      lastService: '2026-03-12',
-      availability: 96,
-      status: 'Operational'
-    },
-    {
-      id: 'AST-207',
-      name: 'Air Compressor C-3',
-      type: 'Utility',
-      location: 'Plant 2',
-      condition: 'Watch',
-      lastService: '2026-02-18',
-      availability: 88,
-      status: 'Operational'
-    },
-    {
-      id: 'AST-304',
-      name: 'Cooling Tower CT-9',
-      type: 'HVAC',
-      location: 'North Wing',
-      condition: 'Good',
-      lastService: '2026-04-04',
-      availability: 94,
-      status: 'Operational'
-    },
-    {
-      id: 'AST-412',
-      name: 'Generator G-2',
-      type: 'Power',
-      location: 'Backup Yard',
-      condition: 'Critical',
-      lastService: '2026-01-21',
-      availability: 71,
-      status: 'Maintenance'
-    }
-  ],
-  workOrders: [
-    { id: 'WO-2047', assetId: 'AST-101', title: 'Inspect pressure relief valve', priority: 'High', status: 'Open', dueDate: '2026-11-22', technician: 'R. Silva', category: 'Safety' },
-    { id: 'WO-2048', assetId: 'AST-207', title: 'Replace drive belt and verify alignment', priority: 'Medium', status: 'In Progress', dueDate: '2026-11-25', technician: 'J. Patel', category: 'Reliability' },
-    { id: 'WO-2049', assetId: 'AST-412', title: 'Complete emergency generator load test', priority: 'Critical', status: 'Open', dueDate: '2026-11-18', technician: 'M. Gomez', category: 'Power' },
-    { id: 'WO-2050', assetId: 'AST-304', title: 'Clean basin and inspect drift eliminators', priority: 'Low', status: 'Closed', dueDate: '2026-11-12', technician: 'S. Nguyen', category: 'HVAC' }
-  ],
-  schedule: [
-    { id: 'PM-5002', assetId: 'AST-304', task: 'Cooling tower cleaning', frequency: 'Monthly', nextDue: '2026-11-25', owner: 'Facilities' },
-    { id: 'PM-5003', assetId: 'AST-101', task: 'Pressure vessel inspection', frequency: 'Quarterly', nextDue: '2026-11-29', owner: 'Safety' },
-    { id: 'PM-5004', assetId: 'AST-207', task: 'Lubrication and vibration check', frequency: 'Bi-weekly', nextDue: '2026-11-20', owner: 'Reliability' }
-  ],
-  technicians: [
-    { id: 2, name: 'R. Silva', role: 'Lead Technician', availability: 'On site', assigned: 2 },
-    { id: 3, name: 'J. Patel', role: 'Maintenance Engineer', availability: 'Available', assigned: 1 },
-    { id: 4, name: 'M. Gomez', role: 'Electrical Specialist', availability: 'In transit', assigned: 3 }
-  ],
-  maintenanceLog: [
-    { id: 'LOG-1001', assetId: 'AST-101', technician: 'R. Silva', action: 'Valve inspection completed', status: 'Completed', date: '2026-11-16' },
-    { id: 'LOG-1002', assetId: 'AST-207', technician: 'J. Patel', action: 'Belt alignment verified', status: 'In progress', date: '2026-11-17' },
-    { id: 'LOG-1003', assetId: 'AST-412', technician: 'M. Gomez', action: 'Generator load test scheduled', status: 'Pending', date: '2026-11-18' }
-  ],
-  inventory: [
-    { id: 'INV-1001', name: 'Valve gasket kit', sku: 'VG-44', quantity: 14, location: 'Spare Bay A', status: 'Ready' },
-    { id: 'INV-1002', name: 'Drive belt set', sku: 'DB-120', quantity: 6, location: 'Tool Room', status: 'Low' },
-    { id: 'INV-1003', name: 'Transformer fuse', sku: 'TF-9', quantity: 22, location: 'Warehouse B', status: 'Ready' }
-  ],
-  users: [
-    { id: 1, username: 'admin', password: 'admin123', name: 'Admin User', role: 'administrator' },
-    { id: 2, username: 'r.silva', password: 'tech123', name: 'R. Silva', role: 'technician' },
-    { id: 3, username: 'j.patel', password: 'tech123', name: 'J. Patel', role: 'technician' },
-    { id: 4, username: 'm.gomez', password: 'tech123', name: 'M. Gomez', role: 'technician' }
-  ]
-};
+      <section class="panel" aria-labelledby="alerts-heading">
+        <div class="panel-heading">
+          <div>
+            <h2 id="alerts-heading">Alerts requiring attention</h2>
+            <p class="muted">Critical assets, low stock, and overdue work orders.</p>
+          </div>
+        </div>
+        <div id="reportAlerts" class="alert-list" aria-live="polite">
+          <p class="muted">Loading alerts…</p>
+        </div>
+      </section>
 
-function ensureDataFile() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
+      <section class="panel" aria-labelledby="maintenance-heading">
+        <div class="panel-heading">
+          <div>
+            <h2 id="maintenance-heading">Upcoming maintenance</h2>
+          </div>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Task</th>
+                <th scope="col">Asset</th>
+                <th scope="col">Due</th>
+                <th scope="col">Owner</th>
+              </tr>
+            </thead>
+            <tbody id="upcomingMaintenance">
+              <tr><td colspan="4" class="muted">Loading schedule…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
 
-  if (!fs.existsSync(DATA_FILE)) {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(baseState, null, 2), 'utf8');
-  }
-}
-
-function readStore() {
-  ensureDataFile();
-  const raw = fs.readFileSync(DATA_FILE, 'utf8');
-  try {
-    return JSON.parse(raw);
-  } catch (error) {
-    return JSON.parse(JSON.stringify(baseState));
-  }
-}
-
-function writeStore(store) {
-  ensureDataFile();
-  fs.writeFileSync(DATA_FILE, JSON.stringify(store, null, 2), 'utf8');
-}
-
-function getOverview(store) {
-  const assets = store.assets || [];
-  const workOrders = store.workOrders || [];
-  const openWorkOrders = workOrders.filter((item) => item.status !== 'Closed').length;
-  const critical = workOrders.filter((item) => item.priority === 'Critical').length;
-  const compliance = 88;
-  const uptime = Math.round(assets.reduce((sum, asset) => sum + Number(asset.availability || 0), 0) / Math.max(assets.length, 1));
-
-  return {
-    summary: { openWorkOrders, critical, compliance, uptime },
-    trends: [
-      { month: 'Jan', value: 72 },
-      { month: 'Feb', value: 75 },
-      { month: 'Mar', value: 81 },
-      { month: 'Apr', value: 83 },
-      { month: 'May', value: 86 },
-      { month: 'Jun', value: 88 }
-    ]
-  };
-}
-
-function getReportData(store) {
-  const workOrders = store.workOrders || [];
-  const inventory = store.inventory || [];
-  const assets = store.assets || [];
-  const schedule = store.schedule || [];
-
-  const criticalAssets = assets.filter((asset) => asset.condition === 'Critical');
-  const lowInventory = inventory.filter((item) => item.status && item.status.toLowerCase() === 'low');
-  const overdueWorkOrders = workOrders.filter((item) => item.status !== 'Closed' && item.dueDate && new Date(item.dueDate) < new Date());
-
-  const alerts = [
-    ...criticalAssets.map((asset) => ({
-      type: 'Critical asset',
-      title: `${asset.name} (${asset.id})`,
-      severity: 'High',
-      detail: 'Asset condition is flagged critical and requires immediate review.'
-    })),
-    ...lowInventory.map((item) => ({
-      type: 'Inventory risk',
-      title: `${item.name} (${item.sku})`,
-      severity: 'Medium',
-      detail: `Only ${item.quantity} units remain in ${item.location}.`
-    })),
-    ...overdueWorkOrders.map((order) => ({
-      type: 'Overdue work order',
-      title: `${order.title} (${order.id})`,
-      severity: order.priority === 'Critical' ? 'High' : 'Medium',
-      detail: `Due ${order.dueDate}. Assigned to ${order.technician || 'unassigned'}.`
-    }))
-  ];
-
-  const byStatus = ['Open', 'In Progress', 'Closed'].map((status) => ({
-    status,
-    count: workOrders.filter((item) => item.status === status).length
-  }));
-
-  const upcomingMaintenance = (schedule || []).slice(0, 4).map((item) => ({
-    id: item.id,
-    asset: item.assetId,
-    task: item.task,
-    due: item.nextDue,
-    owner: item.owner
-  }));
-
-  return {
-    summary: {
-      totalAssets: assets.length,
-      openWorkOrders: workOrders.filter((item) => item.status !== 'Closed').length,
-      criticalIssues: criticalAssets.length,
-      lowInventory: lowInventory.length,
-      overdueWorkOrders: overdueWorkOrders.length,
-      scheduledPm: schedule.length
-    },
-    byStatus,
-    alerts,
-    upcomingMaintenance
-  };
-}
-
-app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
-
-app.get('/api/health', (req, res) => {
-  res.json({ ok: true, service: 'GMAO Carrier Pro', timestamp: new Date().toISOString() });
-});
-
-app.post('/api/login', (req, res) => {
-  const store = readStore();
-  const { username, password } = req.body || {};
-  const user = (store.users || []).find((entry) => entry.username === username && entry.password === password);
-
-  if (!user) {
-    return res.status(401).json({ error: 'Invalid username or password.' });
-  }
-
-  const token = `gmao-${user.id}-${Date.now()}`;
-  res.json({ token, user: { id: user.id, username: user.username, name: user.name, role: user.role } });
-});
-
-app.get('/api/me', (req, res) => {
-  const token = req.headers.authorization?.replace('Bearer ', '');
-  if (!token) {
-    return res.status(401).json({ error: 'Authentication required.' });
-  }
-
-  const store = readStore();
-  const userId = Number(token.split('-')[1]);
-  const user = (store.users || []).find((entry) => entry.id === userId);
-
-  if (!user) {
-    return res.status(401).json({ error: 'Invalid session.' });
-  }
-
-  res.json({ user: { id: user.id, username: user.username, name: user.name, role: user.role } });
-});
-
-app.get('/api/overview', (req, res) => {
-  res.json(getOverview(readStore()));
-});
-
-app.get('/api/reports', (req, res) => {
-  const store = readStore();
-  res.json(getReportData(store));
-});
-
-app.get('/api/assets', (req, res) => {
-  const store = readStore();
-  const { type, q } = req.query;
-  let filtered = [...(store.assets || [])];
-
-  if (type) {
-    filtered = filtered.filter((asset) => asset.type.toLowerCase() === String(type).toLowerCase());
-  }
-
-  if (q) {
-    const search = String(q).trim().toLowerCase();
-    filtered = filtered.filter((asset) =>
-      asset.name.toLowerCase().includes(search) ||
-      asset.id.toLowerCase().includes(search) ||
-      asset.location.toLowerCase().includes(search)
-    );
-  }
-
-  res.json(filtered);
-});
-
-app.get('/api/assets/:assetId', (req, res) => {
-  const store = readStore();
-  const asset = (store.assets || []).find((item) => item.id === req.params.assetId);
-  if (!asset) {
-    return res.status(404).json({ error: 'Asset not found.' });
-  }
-
-  res.json(asset);
-});
-
-app.post('/api/assets', (req, res) => {
-  const store = readStore();
-  const { name, type, location, condition = 'Good', availability = 90 } = req.body || {};
-
-  if (!name || !type || !location) {
-    return res.status(400).json({ error: 'Name, type, and location are required.' });
-  }
-
-  const nextNumber = (store.assets || []).length + 1;
-  const asset = {
-    id: `AST-${String(nextNumber).padStart(3, '0')}`,
-    name,
-    type,
-    location,
-    condition,
-    status: condition === 'Critical' ? 'Maintenance' : 'Operational',
-    lastService: new Date().toISOString().slice(0, 10),
-    availability: Number(availability)
-  };
-
-  const assets = [asset, ...(store.assets || [])];
-  const nextStore = { ...store, assets };
-  writeStore(nextStore);
-  res.status(201).json(asset);
-});
-
-app.get('/api/work-orders', (req, res) => {
-  const store = readStore();
-  const { status, priority } = req.query;
-  let filtered = [...(store.workOrders || [])];
-
-  if (status) {
-    filtered = filtered.filter((item) => item.status.toLowerCase() === String(status).toLowerCase());
-  }
-
-  if (priority) {
-    filtered = filtered.filter((item) => item.priority.toLowerCase() === String(priority).toLowerCase());
-  }
-
-  res.json(filtered);
-});
-
-app.post('/api/work-orders', (req, res) => {
-  const store = readStore();
-  const { title, assetId, priority = 'Medium', status = 'Open', technician = 'Unassigned', dueDate } = req.body || {};
-
-  if (!title || !assetId) {
-    return res.status(400).json({ error: 'Title and assetId are required.' });
-  }
-
-  const nextId = `WO-${Math.floor(1000 + Math.random() * 9000)}`;
-  const newWorkOrder = {
-    id: nextId,
-    assetId,
-    title,
-    priority,
-    status,
-    dueDate: dueDate || new Date(Date.now() + 1000 * 60 * 60 * 24 * 7).toISOString().slice(0, 10),
-    technician,
-    category: 'General'
-  };
-
-  const workOrders = [newWorkOrder, ...(store.workOrders || [])];
-  writeStore({ ...store, workOrders });
-  res.status(201).json(newWorkOrder);
-});
-
-app.patch('/api/work-orders/:id', (req, res) => {
-  const store = readStore();
-  const index = (store.workOrders || []).findIndex((item) => item.id === req.params.id);
-  if (index === -1) {
-    return res.status(404).json({ error: 'Work order not found.' });
-  }
-
-  const { status, priority, technician, dueDate } = req.body || {};
-  const workOrders = [...(store.workOrders || [])];
-  if (status) workOrders[index].status = status;
-  if (priority) workOrders[index].priority = priority;
-  if (technician) workOrders[index].technician = technician;
-  if (dueDate) workOrders[index].dueDate = dueDate;
-
-  writeStore({ ...store, workOrders });
-  res.json(workOrders[index]);
-});
-
-app.delete('/api/work-orders/:id', (req, res) => {
-  const store = readStore();
-  const workOrders = (store.workOrders || []).filter((item) => item.id !== req.params.id);
-  if (workOrders.length === (store.workOrders || []).length) {
-    return res.status(404).json({ error: 'Work order not found.' });
-  }
-
-  writeStore({ ...store, workOrders });
-  res.json({ deleted: true, workOrderId: req.params.id });
-});
-
-app.get('/api/technicians', (req, res) => {
-  const store = readStore();
-  res.json(store.technicians || []);
-});
-
-app.get('/api/maintenance-log', (req, res) => {
-  const store = readStore();
-  res.json(store.maintenanceLog || []);
-});
-
-app.get('/api/schedule', (req, res) => {
-  const store = readStore();
-  res.json(store.schedule || []);
-});
-
-app.get('/api/inventory', (req, res) => {
-  const store = readStore();
-  res.json(store.inventory || []);
-});
-
-app.post('/api/inventory', (req, res) => {
-  const store = readStore();
-  const { name, sku, quantity = 0, location = 'Warehouse', status = 'Ready' } = req.body || {};
-
-  if (!name || !sku) {
-    return res.status(400).json({ error: 'Name and SKU are required.' });
-  }
-
-  const item = {
-    id: `INV-${Date.now().toString().slice(-6)}`,
-    name,
-    sku,
-    quantity: Number(quantity),
-    location,
-    status
-  };
-
-  const inventory = [item, ...(store.inventory || [])];
-  writeStore({ ...store, inventory });
-  res.status(201).json(item);
-});
-
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-app.listen(PORT, () => {
-  console.log(`GMAO Carrier Pro running on http://localhost:${PORT}`);
-});
+      <p id="reportError" class="error-message" role="alert" hidden></p>
+    </main>
+    <script src="/app.js" defer></script>
+  </body>
+</html>
